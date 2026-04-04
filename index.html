@@ -1491,7 +1491,13 @@ async function exportDocPDF(doc, biz) {
 
 function buildPDFHtml(doc, biz, useEn, qrDataUrl) {
   const isEn = useEn;
-  const typeLabel = isEn ? docLabelEn(doc.type) : docLabel(doc.type);
+  // If receipt with VAT → ใบกำกับภาษี / Tax Invoice
+  let typeLabel;
+  if(doc.type === 'receipt' && doc.vatOn) {
+    typeLabel = isEn ? 'Tax Invoice / Receipt' : 'ใบกำกับภาษี / ใบเสร็จรับเงิน';
+  } else {
+    typeLabel = isEn ? docLabelEn(doc.type) : docLabel(doc.type);
+  }
   const bizName = isEn ? (biz.nameEn||biz.name) : biz.name;
   const bizType = isEn ? (biz.typeEn||biz.type) : biz.type;
   const bizOwner = isEn ? (biz.ownerEn||biz.owner) : biz.owner;
@@ -1554,20 +1560,20 @@ function buildPDFHtml(doc, biz, useEn, qrDataUrl) {
   body {
     font-family:'Sarabun',sans-serif;
     color:${textColor};
-    background:#f0ede8;
+    background:#e8e4de;
     font-size:14px;
     line-height:1.6;
-    padding: 28px 20px 40px;
+    padding: 36px 24px 52px;
   }
   .doc-paper {
     background: white;
-    max-width: 720px;
+    max-width: 740px;
     margin: 0 auto;
-    padding: 36px 40px 44px;
-    border-radius: 10px;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.10);
+    padding: 40px 44px 48px;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.12);
   }
-  @page { size:A4; margin:14mm 16mm; }
+  @page { size:A4; margin:12mm 15mm; }
   @media print {
     body {
       background: white;
@@ -1578,7 +1584,7 @@ function buildPDFHtml(doc, biz, useEn, qrDataUrl) {
     .doc-paper {
       box-shadow: none;
       border-radius: 0;
-      padding: 0;
+      padding: 6px 0 0;
       max-width: 100%;
     }
   }
@@ -1861,8 +1867,15 @@ function posPrint() {
   const biz = getActiveBiz();
   const shopName = document.getElementById('pos-shop-name').value.trim() || (biz ? biz.name : 'ร้านค้า');
   const note = document.getElementById('pos-note').value.trim();
-  const docTypeLabel = document.getElementById('pos-doc-type').value === 'receipt' ? 'ใบเสร็จรับเงิน' : 'บิลเงินสด';
-  const { sub, vat, vatOn, total } = posCalc();
+  const posDocType = document.getElementById('pos-doc-type').value;
+  const posVatOn = document.getElementById('pos-vat').checked;
+  let docTypeLabel;
+  if(posDocType === 'receipt') {
+    docTypeLabel = posVatOn ? 'ใบกำกับภาษี / ใบเสร็จรับเงิน' : 'ใบเสร็จรับเงิน';
+  } else {
+    docTypeLabel = 'บิลเงินสด';
+  }
+  const { sub, vat, total } = posCalc();
   const received = parseFloat(document.getElementById('pos-cash-received').value) || 0;
   const change = received > 0 ? Math.max(0, received - total) : null;
   const now = new Date();
@@ -1885,57 +1898,111 @@ function posPrint() {
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Sarabun',sans-serif; background:#f0ede8; padding:20px 14px 36px; }
-  .receipt { background:white; max-width:320px; margin:0 auto; padding:22px 18px 28px; border-radius:4px; box-shadow:0 2px 12px rgba(0,0,0,0.12); position:relative; }
-  .receipt::before { content:''; position:absolute; top:-8px; left:0; right:0; height:8px; background: repeating-linear-gradient(90deg, #f0ede8 0px, #f0ede8 8px, white 8px, white 16px); }
-  .receipt::after  { content:''; position:absolute; bottom:-8px; left:0; right:0; height:8px; background: repeating-linear-gradient(90deg, #f0ede8 0px, #f0ede8 8px, white 8px, white 16px); }
+  body {
+    font-family:'Sarabun',sans-serif;
+    background:#f0ede8;
+    padding: 32px 20px 48px;
+    min-height: 100vh;
+  }
+  .receipt-wrap {
+    max-width: 340px;
+    margin: 0 auto;
+  }
+  .receipt {
+    background: white;
+    padding: 26px 22px 30px;
+    border-radius: 6px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.13);
+    position: relative;
+  }
+  /* Zigzag top */
+  .receipt::before {
+    content:'';
+    position:absolute;
+    top:-10px; left:0; right:0; height:10px;
+    background: linear-gradient(135deg, #f0ede8 25%, transparent 25%) -10px 0,
+                linear-gradient(225deg, #f0ede8 25%, transparent 25%) -10px 0,
+                linear-gradient(315deg, #f0ede8 25%, transparent 25%),
+                linear-gradient(45deg,  #f0ede8 25%, transparent 25%);
+    background-size: 20px 10px;
+    background-color: white;
+  }
+  /* Zigzag bottom */
+  .receipt::after {
+    content:'';
+    position:absolute;
+    bottom:-10px; left:0; right:0; height:10px;
+    background: linear-gradient(135deg, transparent 25%, white 25%) -10px 0,
+                linear-gradient(225deg, transparent 25%, white 25%) -10px 0,
+                linear-gradient(315deg, transparent 25%, white 25%),
+                linear-gradient(45deg,  transparent 25%, white 25%);
+    background-size: 20px 10px;
+    background-color: #f0ede8;
+  }
   .shop-name { font-size:20px; font-weight:700; text-align:center; margin-bottom:2px; letter-spacing:0.02em; }
-  .doc-type { font-size:13px; font-weight:600; text-align:center; color:#7B9E87; border:1.5px solid #7B9E87; display:inline-block; padding:2px 16px; border-radius:20px; margin:6px auto 10px; }
-  .meta { font-size:12px; color:#888; text-align:center; margin-bottom:4px; }
-  .divider-dash { border:none; border-top:1.5px dashed #ccc; margin:10px 0; }
+  .doc-type-badge {
+    text-align:center; margin: 8px 0 10px;
+  }
+  .doc-type-badge span {
+    font-size:13px; font-weight:700; color:#7B9E87;
+    border:1.5px solid #7B9E87;
+    padding:3px 18px; border-radius:20px;
+    letter-spacing:0.03em;
+  }
+  .meta { font-size:12px; color:#999; text-align:center; margin-bottom:3px; }
+  .divider-dash { border:none; border-top:1.5px dashed #ddd; margin:12px 0; }
   table { width:100%; border-collapse:collapse; }
-  th { font-size:11px; color:#aaa; font-weight:600; text-align:left; padding:4px 4px 8px; border-bottom:1.5px solid #eee; text-transform:uppercase; letter-spacing:0.04em; }
-  th:nth-child(2),th:nth-child(3),th:nth-child(4) { text-align:right; }
-  .total-row { display:flex; justify-content:space-between; align-items:center; margin-top:6px; }
-  .total-label { font-size:13px; color:#888; }
-  .total-val { font-size:13px; font-weight:600; }
-  .grand-row { display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding-top:10px; border-top:2px solid #222; }
-  .grand-label { font-size:16px; font-weight:700; }
-  .grand-val { font-size:22px; font-weight:800; color:#5C7D68; }
-  .change-box { background:#EEF4F0; border-radius:8px; padding:10px 14px; margin-top:12px; display:flex; justify-content:space-between; align-items:center; }
+  th { font-size:11px; color:#bbb; font-weight:600; text-align:left; padding:4px 4px 8px; border-bottom:1.5px solid #eee; text-transform:uppercase; letter-spacing:0.04em; }
+  th:nth-child(2){ text-align:center; }
+  th:nth-child(3),th:nth-child(4) { text-align:right; }
+  .total-row { display:flex; justify-content:space-between; align-items:center; margin-top:7px; }
+  .total-label { font-size:13px; color:#999; }
+  .total-val { font-size:13px; font-weight:600; color:#444; }
+  .grand-row { display:flex; justify-content:space-between; align-items:baseline; margin-top:12px; padding-top:12px; border-top:2px solid #222; }
+  .grand-label { font-size:17px; font-weight:700; }
+  .grand-val { font-size:24px; font-weight:800; color:#5C7D68; }
+  .change-box { background:#EEF4F0; border-radius:9px; padding:11px 14px; margin-top:13px; }
+  .change-inner { display:flex; justify-content:space-between; align-items:center; }
   .change-label { font-size:13px; color:#5C7D68; font-weight:600; }
-  .change-val { font-size:18px; font-weight:800; color:#5C7D68; }
-  .footer { text-align:center; font-size:11px; color:#ccc; margin-top:20px; line-height:1.7; }
-  @page { size:80mm auto; margin:0; }
+  .change-val { font-size:20px; font-weight:800; color:#5C7D68; }
+  .received-row { display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px; color:#888; }
+  .footer { text-align:center; font-size:11px; color:#ddd; margin-top:22px; line-height:1.8; }
+  @page { size: 80mm auto; margin: 8mm 6mm; }
   @media print {
-    body { background:white; padding:0; }
-    .receipt { box-shadow:none; max-width:100%; border-radius:0; padding:14px 12px 20px; }
-    .receipt::before,.receipt::after { display:none; }
+    body { background: white; padding: 0; }
+    .receipt-wrap { max-width: 100%; }
+    .receipt { box-shadow: none; border-radius: 0; padding: 10px 8px 18px; }
+    .receipt::before, .receipt::after { display: none; }
   }
 </style>
 </head>
 <body>
+<div class="receipt-wrap">
 <div class="receipt">
   <div class="shop-name">${shopName}</div>
   ${biz && biz.phone ? `<div class="meta">โทร: ${biz.phone}</div>` : ''}
-  ${biz && biz.address ? `<div class="meta">${biz.address}</div>` : ''}
-  <div style="text-align:center;"><span class="doc-type">${docTypeLabel}</span></div>
-  <div class="meta">${dateStr} เวลา ${timeStr}</div>
-  ${note ? `<div class="meta" style="color:#555;font-weight:500;">${note}</div>` : ''}
+  ${biz && biz.address ? `<div class="meta" style="font-size:11px;">${biz.address}</div>` : ''}
+  ${biz && biz.tax ? `<div class="meta">เลขผู้เสียภาษี: ${biz.tax}</div>` : ''}
+  <div class="doc-type-badge"><span>${docTypeLabel}</span></div>
+  <div class="meta">${dateStr} · ${timeStr} น.</div>
+  ${note ? `<div class="meta" style="color:#555;font-weight:600;margin-top:3px;">${note}</div>` : ''}
 
   <hr class="divider-dash">
 
   <table>
     <thead><tr>
-      <th>รายการ</th><th style="text-align:center;">จำนวน</th><th style="text-align:right;">ราคา</th><th style="text-align:right;">รวม</th>
+      <th>รายการ</th>
+      <th style="text-align:center;width:38px;">จำนวน</th>
+      <th style="text-align:right;width:64px;">ราคา</th>
+      <th style="text-align:right;width:64px;">รวม</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
 
   <hr class="divider-dash">
 
-  ${vatOn ? `<div class="total-row"><span class="total-label">ยอดก่อน VAT</span><span class="total-val">${numFmt(sub)}</span></div>` : ''}
-  ${vatOn ? `<div class="total-row"><span class="total-label">VAT 7%</span><span class="total-val">${numFmt(vat)}</span></div>` : ''}
+  ${posVatOn ? `<div class="total-row"><span class="total-label">ยอดก่อน VAT</span><span class="total-val">${numFmt(sub)}</span></div>` : ''}
+  ${posVatOn ? `<div class="total-row"><span class="total-label">VAT 7%</span><span class="total-val">${numFmt(vat)}</span></div>` : ''}
 
   <div class="grand-row">
     <span class="grand-label">รวมทั้งสิ้น</span>
@@ -1943,17 +2010,19 @@ function posPrint() {
   </div>
 
   ${received > 0 ? `
-  <div class="total-row" style="margin-top:8px;"><span class="total-label">รับเงินมา</span><span class="total-val">${numFmt(received)}</span></div>
-  <div class="change-box">
-    <span class="change-label">เงินทอน</span>
-    <span class="change-val">${numFmt(change)} ฿</span>
+  <div class="change-box" style="margin-top:14px;">
+    <div class="received-row"><span>รับเงินมา</span><span>${numFmt(received)} ฿</span></div>
+    <div class="change-inner">
+      <span class="change-label">💵 เงินทอน</span>
+      <span class="change-val">${numFmt(change)} ฿</span>
+    </div>
   </div>` : ''}
 
   <div class="footer">
-    ขอบคุณที่ใช้บริการ 🙏<br>
-    ${biz && biz.tax ? `เลขผู้เสียภาษี: ${biz.tax}<br>` : ''}
-    <span style="color:#e0e0e0;">FreelanceBooks</span>
+    ✦ ขอบคุณที่ใช้บริการ ✦<br>
+    <span style="color:#e8e8e8;">FreelanceBooks</span>
   </div>
+</div>
 </div>
 </body>
 </html>`;
