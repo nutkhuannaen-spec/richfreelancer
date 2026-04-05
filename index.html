@@ -2091,19 +2091,28 @@ function editPOSBill(docNum) {
   document.getElementById('pos-vat').checked = bill.vatOn || false;
   document.getElementById('pos-doc-type').value = bill.docType || 'cash';
   document.getElementById('pos-cash-received').value = bill.received || '';
+  // ลบ transaction เก่าออกก่อน (จะสร้างใหม่ตอน reprint)
+  if(bill.bizId) {
+    db.transactions = db.transactions.filter(t => t.posDocNum !== docNum);
+    saveDB();
+  }
   // Remove old bill from history (will be re-created when printed)
   const newHistory = history.filter(b => b.docNum !== docNum);
   savePOSHistory(newHistory);
   renderPOSItems(); posCalc(); renderPOSHistory();
-  // Scroll to top of POS page
   document.getElementById('page-pos').scrollIntoView({behavior:'smooth'});
-  // Show toast
   showToast('โหลดบิล ' + docNum + ' มาแก้ไขแล้ว');
 }
 
 function deletePOSBill(docNum) {
   if(!confirm('ลบบิล ' + docNum + ' ออกจากประวัติ?')) return;
   const history = loadPOSHistory();
+  const bill = history.find(b => b.docNum === docNum);
+  // ลบ transaction ที่เกี่ยวข้องด้วย
+  if(bill && bill.bizId) {
+    db.transactions = db.transactions.filter(t => t.posDocNum !== docNum);
+    saveDB();
+  }
   savePOSHistory(history.filter(b => b.docNum !== docNum));
   renderPOSHistory();
 }
@@ -2164,6 +2173,25 @@ function posPrint() {
   history.unshift(billRecord);
   savePOSHistory(history);
   renderPOSHistory();
+
+  // ✅ บันทึกรายรับเข้าระบบบัญชี (เหมือนใบเสร็จปกติ)
+  if(biz && db.activeBizId) {
+    const txDate = now.toISOString().slice(0,10);
+    const txDesc = note
+      ? 'บิลด่วน ' + docNum + ' (' + note + ')'
+      : 'บิลด่วน ' + docNum + (shopName ? ' – ' + shopName : '');
+    db.transactions.push({
+      id: uid(),
+      bizId: biz.id,
+      type: 'income',
+      date: txDate,
+      desc: txDesc,
+      amount: total,
+      cat: 'income_product',
+      posDocNum: docNum,
+    });
+    saveDB();
+  }
 
   openPOSPrintWindow(billRecord, biz);
 }
